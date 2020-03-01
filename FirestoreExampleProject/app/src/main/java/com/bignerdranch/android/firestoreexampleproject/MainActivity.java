@@ -43,9 +43,8 @@ public class MainActivity extends AppCompatActivity {
         editTextTitle = findViewById(R.id.edit_text_title);
         editTextDescription = findViewById(R.id.edit_text_description);
         editTextPriority = findViewById(R.id.edit_text_priority);
-        textViewData = findViewById(R.id.text_view_data);
         editTextTags = findViewById(R.id.edit_text_tags);
-        updateNestedValue();
+        textViewData = findViewById(R.id.text_view_data);
     }
 
     public void addNote(View v) {
@@ -70,11 +69,14 @@ public class MainActivity extends AppCompatActivity {
 
         Note note = new Note(title, description, priority, tags);
 
-        notebookRef.add(note);
+        notebookRef.document("8WqK24RbJ9IYuDtGzutd")
+                .collection("Child Notes").add(note);
     }
 
     public void loadNotes(View v) {
-        notebookRef.whereEqualTo("tags.tag1", true).get()
+        notebookRef.document("8WqK24RbJ9IYuDtGzutd")
+                .collection("Child Notes")
+                .get()
                 .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
                     @Override
                     public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
@@ -97,16 +99,5 @@ public class MainActivity extends AppCompatActivity {
                         textViewData.setText(data);
                     }
                 });
-    }
-
-    private void updateNestedValue() {
-        notebookRef.document("HME7vzrhx0lZGRkCPw6e")
-//                .update("tags", FieldValue.arrayUnion("new tag"));
-                // removes array element by its value's name
-//        .update("tags", FieldValue.arrayRemove("new tag"));
-                //updates nested object element and changes it's value to false
-//        .update("tags.tag1", false);
-                //deletes the nested map's field value
-        .update("tags.tag1.nested1.nested2", true);
     }
 }
