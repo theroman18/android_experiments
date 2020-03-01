@@ -5,8 +5,10 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.DocumentChange;
@@ -18,6 +20,7 @@ import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
+import com.google.firebase.firestore.WriteBatch;
 
 import javax.annotation.Nullable;
 
@@ -45,42 +48,8 @@ public class MainActivity extends AppCompatActivity {
         editTextDescription = findViewById(R.id.edit_text_description);
         editTextPriority = findViewById(R.id.edit_text_priority);
         textViewData = findViewById(R.id.text_view_data);
-    }
 
-    @Override
-    protected void onStart() {
-        super.onStart();
-        notebookRef.addSnapshotListener(this, new EventListener<QuerySnapshot>() {
-            @Override
-            public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
-                if (e != null) {
-                    // Log.d(TAG,
-                    return;
-                }
-
-                for (DocumentChange dc : queryDocumentSnapshots.getDocumentChanges()) {
-                    DocumentSnapshot documentSnapshot = dc.getDocument();
-                    String id = documentSnapshot.getId();
-                    int oldIndex = dc.getOldIndex();
-                    int newIndex = dc.getNewIndex();
-
-                    switch (dc.getType()) {
-                        case ADDED:
-                            textViewData.append("\nAdded: " + id +
-                                    "\nOld Index: " + oldIndex + "New Index: " + newIndex);
-                            break;
-                        case MODIFIED:
-                            textViewData.append("\nModified: " + id +
-                                    "\nOld Index: " + oldIndex + "New Index: " + newIndex);
-                            break;
-                        case REMOVED:
-                            textViewData.append("\nRemoved: " + id +
-                                    "\nOld Index: " + oldIndex + "New Index: " + newIndex);
-                            break;
-                    }
-                }
-            }
-        });
+        executeBatchedWrite();
     }
 
     public void addNote(View v) {
@@ -140,5 +109,28 @@ public class MainActivity extends AppCompatActivity {
                         }
                     }
                 });
+    }
+
+    private void executeBatchedWrite() {
+        WriteBatch batch = db.batch();
+        DocumentReference doc1 = notebookRef.document("New Note");
+        batch.set(doc1, new Note("New Note", "New Note", 1));
+
+        DocumentReference doc2 = notebookRef.document("7nE9fvMPajXECCPWPFhQ");
+        batch.update(doc2, "title", "Updated Note");
+
+        DocumentReference doc3 = notebookRef.document("40120QY79oIeNcpWIVId");
+        batch.delete(doc3);
+
+        // this would be equivalent to batch.add()
+        DocumentReference doc4 = notebookRef.document();
+        batch.set(doc4, new Note("Added Note", "Added Note", 1));
+
+        batch.commit().addOnFailureListener(new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception e) {
+                textViewData.setText(e.toString());
+            }
+        });
     }
 }
