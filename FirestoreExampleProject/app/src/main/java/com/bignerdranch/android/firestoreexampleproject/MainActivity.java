@@ -8,16 +8,14 @@ import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.android.gms.tasks.Task;
-import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.QuerySnapshot;
 
-import java.util.List;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -28,6 +26,7 @@ public class MainActivity extends AppCompatActivity {
 
     private FirebaseFirestore db = FirebaseFirestore.getInstance();
     private CollectionReference notebookRef = db.collection("Notebook");
+    private DocumentSnapshot lastResult;
 
     //    private DocumentReference noteRef = db.collection("Notebook").document("My First Note");
     private DocumentReference noteRef = db.document("Notebook/My First Note");
@@ -63,36 +62,44 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void loadNotes(View v) {
-        notebookRef.document("4xReugo8rT2AgcoU6XLm")
-        .get().addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
-            @Override
-            public void onSuccess(DocumentSnapshot documentSnapshot) {
-                notebookRef.orderBy("priority")
-                        .startAt(documentSnapshot)
-                        .get()
-                        .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
-                            @Override
-                            public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                                String data = "";
+        Query query;
+        if (lastResult == null) {
+            query = notebookRef.orderBy("priority")
+                    .limit(3);
+        } else {
+            query = notebookRef.orderBy("priority")
+                    .startAfter(lastResult)
+                    .limit(3);
+        }
 
-                                for (QueryDocumentSnapshot documentSnapshot : queryDocumentSnapshots) {
-                                    Note note = documentSnapshot.toObject(Note.class);
-                                    note.setDocumentId(documentSnapshot.getId());
+        query.get()
+                .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
+                    @Override
+                    public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
+                        String data = "";
 
-                                    String documentId = note.getDocumentId();
-                                    String title = note.getTitle();
-                                    String description = note.getDescription();
-                                    int priority = note.getPriority();
+                        for (QueryDocumentSnapshot documentSnapshot : queryDocumentSnapshots) {
+                            Note note = documentSnapshot.toObject(Note.class);
+                            note.setDocumentId(documentSnapshot.getId());
 
-                                    data += "ID: " + documentId +
-                                            "\nTitle: " + title +
-                                            "\nDescription: " + description +
-                                            "\nPrioity: " + priority + "\n\n";
-                                }
-                                textViewData.setText(data);
-                            }
-                        });
-            }
-        });
+                            String documentId = note.getDocumentId();
+                            String title = note.getTitle();
+                            String description = note.getDescription();
+                            int priority = note.getPriority();
+
+                            data += "ID: " + documentId +
+                                    "\nTitle: " + title +
+                                    "\nDescription: " + description +
+                                    "\nPrioity: " + priority + "\n\n";
+                        }
+                        if (queryDocumentSnapshots.size() > 0) {
+                            data += "___________\n\n";
+                            textViewData.append(data);
+
+                            lastResult = queryDocumentSnapshots.getDocuments()
+                                    .get(queryDocumentSnapshots.size() - 1);
+                        }
+                    }
+                });
     }
 }
