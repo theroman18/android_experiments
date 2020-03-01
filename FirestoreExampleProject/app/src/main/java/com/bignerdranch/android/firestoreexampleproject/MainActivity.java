@@ -12,12 +12,15 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
+import com.google.firebase.firestore.QuerySnapshot;
 
 import javax.annotation.Nullable;
 
@@ -32,6 +35,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView textViewData;
 
     private FirebaseFirestore db = FirebaseFirestore.getInstance();
+    private CollectionReference notebookRef = db.collection("Notebook");
 //    private DocumentReference noteRef = db.collection("Notebook").document("My First Note");
     private DocumentReference noteRef = db.document("Notebook/My First Note");
 //    private ListenerRegistration noteListener;
@@ -49,30 +53,31 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
-        noteRef.addSnapshotListener(this, new EventListener<DocumentSnapshot>() {
+        notebookRef.addSnapshotListener(this, new EventListener<QuerySnapshot>() {
             @Override
-            public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
-                if (e != null)
-                {
-                    Toast.makeText(MainActivity.this, "Error while loading!", Toast.LENGTH_SHORT).show();
-                    Log.d(TAG, e.toString());
+            public void onEvent(@Nullable QuerySnapshot queryDocumentSnapshots, @Nullable FirebaseFirestoreException e) {
+                if (e != null) {
                     return;
                 }
 
-                if (documentSnapshot.exists()) {
-//                    String title = documentSnapshot.getString(KEY_TITLE);
-//                    String description = documentSnapshot.getString(KEY_DESCRIPTION);
-//
-//                    textViewData.setText("Title: " + title + "\n" + "Description: " + description);
-                    Note note = documentSnapshot.toObject(Note.class);
+                String data = "";
+
+                for (QueryDocumentSnapshot documentSnapshot : queryDocumentSnapshots) {
+                    Note note = documentSnapshot.toObject((Note.class));
+                    note.setDocumentId(documentSnapshot.getId());
+
+                    String documentId = note.getDocumentId();
                     String title = note.getTitle();
                     String description = note.getDescription();
 
-                    textViewData.setText("Title: " + title + "\n" + "Description: " + description);
+                    data+= "ID: " + documentId +
+                            "\nTitle: " + title +
+                            "\nDescription: " + description + "\n\n";
+
+//                    notebookRef.document(documentId).update()
                 }
-                else {
-                    textViewData.setText("");
-                }
+
+                textViewData.setText(data);
             }
         });
     }
@@ -84,7 +89,7 @@ public class MainActivity extends AppCompatActivity {
 //        noteListener.remove();
 //    }
 
-    public void saveNote(View v) {
+    public void addNote(View v) {
         String title = editTextTitle.getText().toString();
         String description = editTextDescription.getText().toString();
 
@@ -93,70 +98,31 @@ public class MainActivity extends AppCompatActivity {
 //        note.put(KEY_DESCRIPTION, description);
         Note note = new Note(title, description);
 
-        noteRef.set(note)
-                .addOnSuccessListener(new OnSuccessListener<Void>() {
-                    @Override
-                    public void onSuccess(Void aVoid) {
-                        Toast.makeText(MainActivity.this, "Note saved", Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Toast.makeText(MainActivity.this, "Error!", Toast.LENGTH_SHORT).show();
-                        Log.d(TAG, e.toString());
-                    }
-                });
+        notebookRef.add(note);
     }
 
-    public void updateDescription (View v) {
-        String description = editTextDescription.getText().toString();
+    public void loadNotes(View v) {
+       notebookRef.get()
+               .addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
+                   @Override
+                   public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
+                       String data = "";
 
-//        Map<String, Object> note = new HashMap<>();
-//        note.put(KEY_DESCRIPTION, description);
+                       for (QueryDocumentSnapshot documentSnapshot : queryDocumentSnapshots) {
+                           Note note = documentSnapshot.toObject(Note.class);
+                           note.setDocumentId(documentSnapshot.getId());
 
-//        noteRef.set(note , SetOptions.merge());
-        noteRef.update(KEY_DESCRIPTION, description);
-    }
+                           String documentId = note.getDocumentId();
+                           String title = note.getTitle();
+                           String description = note.getDescription();
 
-    public void deleteDescription (View v) {
-//        Map<String, Object> note = new HashMap<>();
-//        note.put(KEY_DESCRIPTION, FieldValue.delete());
-//
-//        noteRef.update(note);
-        noteRef.update(KEY_DESCRIPTION, FieldValue.delete());
-    }
+                           data+= "ID: " + documentId +
+                                   "\nTitle: " + title +
+                                   "\nDescription: " + description + "\n\n";
+                       }
 
-    public void deleteNote (View v) {
-        noteRef.delete();
-    }
-
-    public void loadNote(View v) {
-        noteRef.get()
-                .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
-                    @Override
-                    public void onSuccess(DocumentSnapshot documentSnapshot) {
-                        if (documentSnapshot.exists()) {
-//                            String title = documentSnapshot.getString(KEY_TITLE);
-//                            String description = documentSnapshot.getString(KEY_DESCRIPTION);
-
-//                            Map<String, Object> note = documentSnapshot.getData();
-                            Note note = documentSnapshot.toObject(Note.class);
-                            String title = note.getTitle();
-                            String description = note.getDescription();
-
-                            textViewData.setText("Title: " + title + "\n" + "Description: " + description);
-                        } else {
-                            Toast.makeText(MainActivity.this, "Document does not exist", Toast.LENGTH_SHORT).show();
-                        }
-                    }
-                })
-                .addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Toast.makeText(MainActivity.this, "Error!", Toast.LENGTH_SHORT).show();
-                        Log.d(TAG, e.toString());
-                    }
-                });
+                       textViewData.setText(data);
+                   }
+               });
     }
 }
